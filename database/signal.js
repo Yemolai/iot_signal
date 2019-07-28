@@ -7,7 +7,7 @@ module.exports = (knex) => ({
     const _page = isPositiveIntNumber(page) ? page : 1
     const _limit = isPositiveIntNumber(limit) ? limit : 100
     const offset = (Number(_page) - 1) * Number(_limit)
-    return knex(tableName).limit(_limit).offset(offset)
+    return knex(tableName).orderBy('timestamp', 'desc').limit(_limit).offset(offset)
   },
   count: async () => {
     const results = knex(tableName).count('id')

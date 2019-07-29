@@ -10,7 +10,7 @@ const LineChart = {
   }
 }
 const SignalChart = {
-  template: `<line-chart :chart-data="signalData" :options="chartOptions"/>`,
+  template: `<line-chart :chart-data="signalChartData" :options="chartOptions"/>`,
   components: { LineChart },
   props: {
     last: {
@@ -18,15 +18,41 @@ const SignalChart = {
       default: 5
     }
   },
-  computed: {
-    signalData () {
-      const { signals } = this
+  computed: {},
+  data: () => ({
+    signalChartData: {
+      labels: [],
+      datasets: []
+    },
+    chartOptions: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  }),
+  methods: {
+    async fetchData () {
+      const uri = `./signal?$limit=${this.last}`
+      const request = fetch(uri).then((res) => res.json()).catch((err) => {
+        console.error({ err })
+        setTimeout(() => {
+          this.fetchData()
+        }, 5000)
+        throw new Error('Não foi possível receber dados, vai tentar novamente em 5 segundos')
+      })
+      const response = await request
+      const signals = response.data.docs.slice(0).reverse()
+      await this.updateData(signals)
+      setTimeout(() => {
+        this.fetchData()
+      }, 5000)
+    },
+    async updateData (signals) {
       const labels = signals.map((signal) => {
         const ts = moment(signal.timestamp)
-        return ts.format('d/MMM HH:mm:ss')
+        return ts.format('D/MMM HH:mm:ss')
       })
       const data = signals.map((signal) => Number(signal.value))
-      return {
+      const newSignalChartData = {
         labels,
         datasets: [
           {
@@ -36,31 +62,11 @@ const SignalChart = {
           }
         ]
       }
-    }
-  },
-  data: () => ({
-    signals: [],
-    chartOptions: {
-      responsive: true,
-      maintainAspectRatio: false
-    }
-  }),
-  methods: {
-    async update () {
-      const uri = `./signal?$limit=${this.last}`
-      const request = fetch(uri).then((res) => res.json()).catch((err) => {
-        console.error({ err })
-        throw new Error('could not get data')
-      })
-      const response = await request
-      this.signals = response.data.docs.slice(0).reverse()
-      setTimeout(() => {
-        this.update()
-      }, 5000)
+      this.signalChartData = newSignalChartData
     }
   },
   mounted () {
-    this.update()
+    this.fetchData()
   }
 }
 const app = new Vue({
@@ -72,7 +78,7 @@ const app = new Vue({
         Hey, it's working
       </p>
       <div style="max-height: 20em;">
-        <signal-chart style="max-width: 80vw; width: 80%; height: 35em;" :last="8"/>
+        <signal-chart style="max-width: 100vw; min-width: 16em; min-height: 8em; width: 100%; height: 40em;" :last="8"/>
       </div>
     </div>`
 })
